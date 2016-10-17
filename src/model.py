@@ -4,7 +4,7 @@ import numpy as np
 import tensorflow as tf
 rng = np.random
 
-# recursively flatten a list
+# Recursively flatten a list.
 def flatten(l):
     if l == []:
         return l
@@ -13,7 +13,7 @@ def flatten(l):
     return l[:1] + flatten(l[1:])
 
 
-# Build out the TensorFlow model for Holt's linear method.
+# Build out the TensorFlow model for an exponential state space model.
 def ModelETS(w_in, F_in, var_init = {}, var_bounds = {}, soft_cost_weight = None, start_state = None, start_params = None):
     w_in = flatten(w_in)
     F_in = flatten(F_in)
@@ -76,6 +76,7 @@ def ModelETS(w_in, F_in, var_init = {}, var_bounds = {}, soft_cost_weight = None
     return model
 
 
+# Basic models that you can get from the R forecast package.
 SimpleETS = ModelETS([1], [[1]])
 HoltsLinear = ModelETS([1, 1], [[1, 1], [0, 1]])
 DampedTrend = ModelETS(
@@ -84,7 +85,7 @@ DampedTrend = ModelETS(
     var_bounds = {'phi': (0.8, 0.98)},
     soft_cost_weight = 5)
 
-# Meta-meta-parameters and debugging knobs
+# Meta-meta-parameters and debugging knobs.
 training_epochs = 4000
 half_life = 300
 display_step = 100
@@ -108,12 +109,14 @@ bonds = np.asarray([
     4.02, 3.9, 3.79, 3.94, 3.56, 3.32, 3.93, 4.44, 4.29, 4.27, 4.29, 4.26,
     4.13, 4.06, 3.81, 4.32, 4.7])
 
-# Meta-parameters, garden variety.
+# Meta-parameters for the optimization, themselves governed by the meta-meta-parameters above.
 global_step = tf.Variable(0)
 learning_rate = tf.minimum(
     tf.train.exponential_decay(base_learn * 2, global_step, half_life * hot_ticket, 0.5),
     tf.train.exponential_decay(base_learn * (2**hot_ticket), global_step, half_life, 0.5))
 cost_weight = tf.train.exponential_decay(peak_param_cost / (cost_growth**hot_ticket), global_step, half_life, cost_growth)
+
+# A wide variety of less traditional models implemented after verifying that the basic results were sound.
 
 # Simple damped model, no boundary constraints
 #Model = ModelETS(
@@ -149,14 +152,24 @@ cost_weight = tf.train.exponential_decay(peak_param_cost / (cost_growth**hot_tic
 #    soft_cost_weight = cost_weight)
 
 # Also hinted at as the best two-parameter form
+#Model = ModelETS(
+#    [1, 1],
+#    [['a', 'b'], [0, 1]],
+#    start_state = [1.9, 3.97],
+#    start_params = [1.12, 0.05],
+#    var_init = {'a': 0.827, 'b': 0.16},
+#    soft_cost_weight = cost_weight)
+
+# Probably the best formulation for expsmooth::bonds, in terms of AIC.
 Model = ModelETS(
     [1, 1],
     [['a', 'b'], [0, 'd']],
     start_state = [1.9, 3.97],
     start_params = [1.12, 0.05],
     var_init = {'a': 0.827, 'b': 0.16, 'd': 0.9949},
-    soft_cost_weight = None)
+    soft_cost_weight = cost_weight)
 
+# Set up the placeholder for the input data, then build the model.
 data = tf.placeholder('float', bonds.shape)
 state0, params, varz, cost = Model(data)
 
@@ -167,6 +180,8 @@ gradients, _ = tf.clip_by_global_norm(gradients, gradient_clip)
 optimizer = optimizer.apply_gradients(zip(gradients, v), global_step=global_step)
 
 
+# Dump the state to the screen.
+# TODO: does repeatedly calling sess.run(...) perturb the state?
 def PrintDiagnostics(sess, ys, title):
     c = sess.run(cost, feed_dict={data: ys})
     print title, \
