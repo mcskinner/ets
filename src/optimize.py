@@ -5,14 +5,14 @@ import tensorflow as tf
 
 
 # Meta-meta-parameters and debugging knobs.
-training_epochs = 4000
-half_life = 300
+training_epochs = 10000
+half_life = 1500
 display_step = 100
-gradient_clip = 0.5
-hot_ticket = 2
+gradient_clip = 2.0
+hot_ticket = 1
 cost_growth = 1.5
-base_learn = 0.02
-peak_param_cost = 5.0
+base_learn = 0.01
+peak_param_cost = 10.0
 
 
 # Meta-parameters for the optimization, themselves governed by the meta-meta-parameters above.
@@ -24,19 +24,17 @@ cost_weight = tf.train.exponential_decay(peak_param_cost / (cost_growth**hot_tic
 
 
 # Set up the input data.
-ys = datasets.bonds
+ys = datasets.ukcars
 data = tf.placeholder('float', ys.shape)
 
 
 # And then build the model.
-state0, params, varz, cost = models.Triangular(cost_weight)(data)
+state0, varz, cost = models.QuarterlySeasonal(cost_weight)(data)
 
 
 # Gradient descent, with decaying learning rate, and with gradient clipping.
-optimizer = tf.train.GradientDescentOptimizer(learning_rate)
-gradients, v = zip(*optimizer.compute_gradients(cost))
-gradients, _ = tf.clip_by_global_norm(gradients, gradient_clip)
-optimizer = optimizer.apply_gradients(zip(gradients, v), global_step=global_step)
+optimizer = tf.train.AdamOptimizer(learning_rate).minimize(cost, global_step=global_step)
+optimize_init0 = tf.train.AdamOptimizer(1.0).minimize(cost, global_step=global_step, var_list=[state0])
 
 
 # Dump the state to the screen.
@@ -45,8 +43,7 @@ def PrintDiagnostics(sess, ys, title):
     c = sess.run(cost, feed_dict={data: ys})
     print title, \
         "cost=", "{:.9f}".format(c), \
-        "state0=", sess.run(tf.reshape(state0, [2])), \
-        "params=", sess.run(tf.reshape(params, [2])), \
+        "state0=", sess.run(tf.reshape(state0, [5])), \
         "varz=", dict((k, sess.run(v)) for k, v in varz.iteritems())
 
 
@@ -57,6 +54,14 @@ init = tf.initialize_all_variables()
 # Launch the graph
 with tf.Session() as sess:
     sess.run(init)
+    PrintDiagnostics(sess, ys, 'Init')
+
+    for epoch in range(1000):
+        sess.run(optimize_init0, feed_dict={data: ys})
+        if epoch % display_step == 0:
+            PrintDiagnostics(sess, ys, 'Init0 training: %04d' % epoch)
+
+    PrintDiagnostics(sess, ys, 'Initial state')
 
     # Fit the data.    
     for epoch in range(training_epochs):

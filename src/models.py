@@ -2,11 +2,12 @@ import ets
 
 
 # Basic models that you can get from the R forecast package.
-SimpleETS = ets.Model([1], [[1]])
-HoltsLinear = ets.Model([1, 1], [[1, 1], [0, 1]])
+SimpleETS = ets.Model([1], [[1]], param_vars = ['alpha'])
+HoltsLinear = ets.Model([1, 1], [[1, 1], [0, 1]], param_vars = ['alpha', 'beta'])
 DampedTrendFromR = lambda cost_weight: ets.Model(
     [1, 'phi'],
     [[1, 'phi'], [0, 'phi']],
+    param_vars = ['alpha', 'beta'],
     var_bounds = {'phi': (0.8, 0.98)},
     soft_cost_weight = cost_weight)
 
@@ -18,6 +19,7 @@ DampedTrendFromR = lambda cost_weight: ets.Model(
 UnconstrainedDampedTrend = lambda cost_weight: lambda cost_weight: ets.Model(
     [1, 'phi'],
     [[1, 'phi'], [0, 'phi']],
+    param_vars = ['alpha', 'beta'],
     soft_cost_weight = None)
 
 
@@ -25,6 +27,7 @@ UnconstrainedDampedTrend = lambda cost_weight: lambda cost_weight: ets.Model(
 DampedTrend = lambda cost_weight: ets.Model(
     [1, 'phi'],
     [[1, 'phi'], [0, 'phi']],
+    param_vars = ['alpha', 'beta'],
     soft_cost_weight = cost_weight)
 
 
@@ -32,6 +35,7 @@ DampedTrend = lambda cost_weight: ets.Model(
 TwoPhiAlpha = lambda cost_weight: ets.Model(
     [1, 'phi_w'],
     [[1, 'phi_F'], [0, 'phi_F']],
+    param_vars = ['alpha', 'beta'],
     soft_cost_weight = cost_weight)
 
 
@@ -40,8 +44,8 @@ TwoParamFullyLoosened = lambda cost_weight: ets.Model(
     [1, 1],
     [['a', 'b'], ['c', 'd']],
     start_state = [2.05, 3.85],
-    start_params = [0.975, 0.25],
-    var_init = {'a': 0.815, 'b': 0.195, 'c': 0, 'd': 1},
+    param_vars = ['alpha', 'beta'],
+    var_init = {'alpha': 0.975, 'beta': 0.25, 'a': 0.815, 'b': 0.195, 'c': 0, 'd': 1},
     soft_cost_weight = cost_weight)
 
 
@@ -49,6 +53,7 @@ TwoParamFullyLoosened = lambda cost_weight: ets.Model(
 TwoPhiBeta = lambda cost_weight: ets.Model(
     [1, 1],
     [[1, 'phi_b'], [0, 'phi_d']],
+    param_vars = ['alpha', 'beta'],
     soft_cost_weight = cost_weight)
 
 
@@ -57,8 +62,8 @@ FreeLevelUpdate = lambda cost_weight: ets.Model(
     [1, 1],
     [['a', 'b'], [0, 1]],
     start_state = [1.9, 3.97],
-    start_params = [1.12, 0.05],
-    var_init = {'a': 0.827, 'b': 0.16},
+    param_vars = ['alpha', 'beta'],
+    var_init = {'alpha': 1.12, 'beta': 0.05, 'a': 0.827, 'b': 0.16},
     soft_cost_weight = cost_weight)
 
 
@@ -67,6 +72,22 @@ Triangular = lambda cost_weight: ets.Model(
     [1, 1],
     [['a', 'b'], [0, 'd']],
     start_state = [2, 4],
-    start_params = [1, 0.1],
-    var_init = {'a': 0.8, 'b': 0.2, 'd': 0.995},
+    param_vars = ['alpha', 'beta'],
+    var_init = {'alpha': 1, 'beta': 0.1, 'a': 0.8, 'b': 0.2, 'd': 0.995},
+    soft_cost_weight = cost_weight)
+
+
+# A seasonal model for quarterly timeseries data (a frequency of 4).
+QuarterlySeasonal = lambda cost_weight: ets.Model(
+    [1, 1, 0, 0, 0],
+    [
+        [1, 0, 0, 0, 0],
+        [0, 0, 1, 0, 0],
+        [0, 0, 0, 1, 0],
+        [0, 0, 0, 0, 1],
+        [0, 1, 0, 0, 0]
+    ],
+    start_state = [0, 0, 0, 0, 0],
+    param_vars  = ['alpha', 0, 0, 0, 'gamma'],
+    var_init = {'alpha': 0.99, 'gamma': 0.01},
     soft_cost_weight = cost_weight)

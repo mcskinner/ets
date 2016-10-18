@@ -2,6 +2,7 @@ import copy
 import itertools
 import numpy
 import tensorflow as tf
+rng = numpy.random
 
 
 # Recursively flatten a list.
@@ -14,17 +15,29 @@ def flatten(l):
 
 
 # Build out the TensorFlow model for an exponential state space model.
-def Model(w_in, F_in, var_init = {}, var_bounds = {}, soft_cost_weight = None, start_state = None, start_params = None):
+def Model(
+    w_in,
+    F_in,
+    var_init = {},
+    var_bounds = {},
+    soft_cost_weight = None,
+    start_state = None,
+    param_vars = None
+):
     w_in = flatten(w_in)
     F_in = flatten(F_in)
-    var_names = [v for v in itertools.chain(w_in, F_in) if isinstance(v, str)]
+    
     n = len(w_in)
 
+    if param_vars is None:
+        param_vars = ['param{0}'.format(i) for i in range(n)]
+    
+    var_names = [v for v in itertools.chain(param_vars, w_in, F_in) if isinstance(v, str)]
     var_init = copy.copy(var_init)
     var_bounds = copy.copy(var_bounds)
     for var in var_names:
         if var not in var_init:
-            var_init[var] = numpy.random.uniform(0, 1)
+            var_init[var] = rng.uniform(0, 1)
         if var not in var_bounds:
             var_bounds[var] = (0, 1)
 
@@ -41,11 +54,9 @@ def Model(w_in, F_in, var_init = {}, var_bounds = {}, soft_cost_weight = None, s
         else:
             state0 = tf.Variable(tf.cast(tf.reshape(flatten(start_state), [n, 1]), dtype = tf.float32))
 
-        if start_params is None:
-            params = tf.Variable(tf.random_uniform([n, 1], 0, 1), dtype = tf.float32)
-        else:
-            params = tf.Variable(tf.cast(tf.reshape(flatten(start_params), [n, 1]), dtype = tf.float32))
-
+        params = [get_var(v) for v in param_vars]
+        params = tf.reshape(tf.pack(params), [n, 1])
+        
         w = tf.reshape(w_varz, shape = [n, 1])
         F = tf.reshape(F_varz, shape = [n, n])
 
@@ -68,10 +79,10 @@ def Model(w_in, F_in, var_init = {}, var_bounds = {}, soft_cost_weight = None, s
         error_cost = tf.reduce_sum(tf.pow(pack_out - data, 2))
         if soft_cost_weight is not None:
             varz_cost = sum([softcost(v, var_bounds[k]) for k, v in varz.iteritems()])
-            params_cost = tf.reduce_sum(softcost(params))
-            cost = error_cost + soft_cost_weight * (varz_cost + params_cost)
+            cost = error_cost + soft_cost_weight * varz_cost
         else:
             cost = error_cost
-        return state0, params, varz, cost
+
+        return state0, varz, cost
 
     return model
