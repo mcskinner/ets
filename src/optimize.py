@@ -6,13 +6,13 @@ import tensorflow as tf
 
 # Meta-meta-parameters and debugging knobs.
 training_epochs = 10000
-half_life = 1500
+half_life = 1000
 display_step = 100
 gradient_clip = 2.0
 hot_ticket = 1
 cost_growth = 1.5
 base_learn = 0.01
-peak_param_cost = 10.0
+peak_param_cost = 70000.0
 
 
 # Meta-parameters for the optimization, themselves governed by the meta-meta-parameters above.
