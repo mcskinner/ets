@@ -29,11 +29,11 @@ data = tf.placeholder('float', ys.shape)
 
 
 # And then build the model.
-state0, varz, cost = models.QuarterlySeasonal(cost_weight)(data)
+state0, varz, cost = models.BaselineState(cost_weight)(data)
 
 
 # Gradient descent, with decaying learning rate, and with gradient clipping.
-optimizer = tf.train.AdamOptimizer(learning_rate).minimize(cost, global_step=global_step)
+optimizer = tf.train.AdamOptimizer(learning_rate, beta2 = 0.95).minimize(cost, global_step=global_step)
 optimize_init0 = tf.train.AdamOptimizer(1.0).minimize(cost, global_step=global_step, var_list=[state0])
 
 
@@ -43,7 +43,7 @@ def PrintDiagnostics(sess, ys, title):
     c = sess.run(cost, feed_dict={data: ys})
     print title, \
         "cost=", "{:.9f}".format(c), \
-        "state0=", sess.run(tf.reshape(state0, [5])), \
+        "state0=", sess.run(tf.reshape(state0, [-1])), \
         "varz=", dict((k, sess.run(v)) for k, v in varz.iteritems())
 
 
