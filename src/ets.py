@@ -70,8 +70,8 @@ def Model(
 
         def softcost(var, bounds = (0, 1)):
             lo, hi = bounds
-            neg_cost = -tf.minimum(var - lo, 0)
-            big_cost = -tf.minimum(hi - var, 0)
+            neg_cost = tf.maximum(lo - var, 0)
+            big_cost = tf.maximum(var - hi, 0)
             return neg_cost + big_cost
 
         # Sum of squared errors (SSE)

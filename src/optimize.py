@@ -1,6 +1,8 @@
 import datasets
 import ets
 import models
+
+import numpy as np
 import tensorflow as tf
 
 
@@ -11,11 +13,8 @@ display_step = 100
 gradient_clip = 2.0
 hot_ticket = 1
 cost_growth = 1.5
-base_learn = 0.025
-peak_param_cost = 70000.0
-
-restate_step = 1000
-state0_learn = 0.5
+base_learn = 0.0025
+peak_param_cost = 1
 
 
 # Meta-parameters for the optimization, themselves governed by the meta-meta-parameters above.
@@ -27,7 +26,9 @@ cost_weight = tf.train.exponential_decay(peak_param_cost / (cost_growth**hot_tic
 
 
 # Set up the input data.
-ys = datasets.ukcars
+ys_raw = datasets.ukcars
+mean_ys = np.mean(ys_raw)
+ys = ys_raw / mean_ys
 data = tf.placeholder('float', ys.shape)
 
 
@@ -35,9 +36,8 @@ data = tf.placeholder('float', ys.shape)
 state0, varz, cost = models.BaselineState(cost_weight)(data)
 
 
-# Gradient descent, with decaying learning rate, and with gradient clipping.
-optimizer = tf.train.AdamOptimizer(learning_rate, beta2 = 0.95).minimize(cost, global_step=global_step)
-optimize_state0 = tf.train.AdamOptimizer(state0_learn).minimize(cost, global_step=global_step, var_list=[state0])
+# Gradient descent, with decaying learning rate.
+optimizer = tf.train.AdamOptimizer(learning_rate, beta2=0.9).minimize(cost, global_step=global_step)
 
 
 # Dump the state to the screen.
@@ -59,13 +59,6 @@ with tf.Session() as sess:
     sess.run(init)
     PrintDiagnostics(sess, ys, 'Init')
 
-    for epoch in range(1000):
-        sess.run(optimize_state0, feed_dict={data: ys})
-        if epoch % display_step == 0:
-            PrintDiagnostics(sess, ys, 'state0 training: %04d' % epoch)
-
-    PrintDiagnostics(sess, ys, 'Initial state')
-
     # Fit the data.    
     for epoch in range(training_epochs):
         sess.run(optimizer, feed_dict={data: ys})
@@ -73,11 +66,6 @@ with tf.Session() as sess:
         # Display logs per epoch step
         if epoch % display_step == 0:
             PrintDiagnostics(sess, ys, 'Epoch: %04d' % epoch)
-
-        if epoch % restate_step == 0:
-            for step in range(100):
-                sess.run(optimize_state0, feed_dict={data: ys})
-            PrintDiagnostics(sess, ys, 'state0 re-training: %04d' % epoch)
 
     print "Optimization Finished!"
     sess.run(optimizer, feed_dict={data: ys})
