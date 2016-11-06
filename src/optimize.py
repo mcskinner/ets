@@ -70,12 +70,6 @@ def GradientDescent():
 def NelderMead():
     # Mild hack to exclude the global step / cost variables.
     all_varz = [var for var in tf.trainable_variables() if not var.name.startswith('global_step')]
-    var_holders = {}
-    for var in all_varz:
-        holder = tf.placeholder(var.dtype, var.get_shape())
-        var_holders[var.name] = holder
-        var.assign(holder)
-
     def GetFeeds(x):
         idx = 0
         feeds = {data: ys}
