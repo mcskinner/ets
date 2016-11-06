@@ -27,7 +27,7 @@ data = tf.placeholder(tf.float32, ys.shape)
 # And then build the model.
 global_step = tf.Variable(0, name = 'global_step')
 cost_weight = tf.train.exponential_decay(base_cost_weight, global_step, half_life, cost_growth)
-state0, varz, cost = models.BaselineState(cost_weight)(data)
+state0, varz, cost = models.QuarterlyHoltWinters(cost_weight)(data)
 
 
 # Dump the state to the screen.
@@ -71,11 +71,10 @@ def NelderMead():
     # Mild hack to exclude the global step / cost variables.
     all_varz = [var for var in tf.trainable_variables() if not var.name.startswith('global_step')]
     var_holders = {}
-    var_assignments = []
     for var in all_varz:
         holder = tf.placeholder(var.dtype, var.get_shape())
         var_holders[var.name] = holder
-        var_assignments.append(var.assign(holder))
+        var.assign(holder)
 
     def GetFeeds(x):
         idx = 0
@@ -93,7 +92,7 @@ def NelderMead():
 
         sess.run(init)
         packed = [tf.reshape(var, [-1]) for var in all_varz]
-        x = scipy.optimize.fmin(Cost, np.concatenate(sess.run(packed)))
+        x = scipy.optimize.fmin(Cost, np.concatenate(sess.run(packed)), maxfun=1000000, maxiter=1000000)
         PrintDiagnostics(sess, ys, 'Nelder-Mead', GetFeeds(x))
 
 
