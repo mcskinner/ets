@@ -68,7 +68,7 @@ start_state = list(np.concatenate([[intercept], [slope], seas]))
 # And then build the model.
 global_step = tf.Variable(0, name = 'global_step')
 cost_weight = tf.train.exponential_decay(base_cost_weight, global_step, half_life, cost_growth)
-state0, varz, cost = models.QuarterlyHoltWinters(cost_weight)(data)
+state0, varz, cost = models.QuarterlyHoltWinters(cost_weight, start_state)(data)
 
 
 # Dump the state to the screen.
