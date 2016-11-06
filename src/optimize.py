@@ -11,10 +11,10 @@ import tensorflow as tf
 
 # Meta-meta-parameters and debugging knobs.
 training_epochs = 10000
-half_life = 1500
+half_life = 2000
 cost_growth = 1.5
-base_learn = 0.005
-base_cost_weight = 7000000.0
+base_learn = 0.00025
+base_cost_weight = 70000.0
 
 display_step = 100
 
@@ -81,15 +81,14 @@ def PrintDiagnostics(sess, ys, title, feeds):
         "varz=", dict((k, sess.run(v, feed_dict=feeds)) for k, v in varz.iteritems())
 
 
-# Initializing the variables
-init = tf.initialize_all_variables()
-
-
 # Gradient descent, with decaying learning rate.
 def GradientDescent():
     # Meta-parameters for the optimization, themselves governed by the meta-meta-parameters above.
     learning_rate = tf.train.exponential_decay(base_learn, global_step, half_life, 0.5)
     optimizer = tf.train.AdamOptimizer(learning_rate, beta2=0.9).minimize(cost, global_step=global_step)
+
+    # Initializing the variables
+    init = tf.initialize_all_variables()
 
     # Launch the graph
     with tf.Session() as sess:
@@ -109,8 +108,12 @@ def GradientDescent():
 
 # Nelder-Mead Simplex algorithm, heuristic but efficient for low dimensionality.
 def NelderMead():
+    # Initializing the variables
+    init = tf.initialize_all_variables()
+
     # Mild hack to exclude the global step / cost variables.
     all_varz = [var for var in tf.trainable_variables() if not var.name.startswith('global_step')]
+
     def GetFeeds(x):
         idx = 0
         feeds = {data: ys}
