@@ -2,7 +2,9 @@ import datasets
 import ets
 import models
 
+
 import numpy as np
+import scipy.stats
 import scipy.optimize
 import tensorflow as tf
 
@@ -12,16 +14,55 @@ training_epochs = 10000
 half_life = 1500
 cost_growth = 1.5
 base_learn = 0.005
-base_cost_weight = 5.0
+base_cost_weight = 7000000.0
 
 display_step = 100
 
 
 # Set up the input data.
 ys_raw = datasets.ukcars
+data = tf.placeholder(tf.float32, ys_raw.shape)
+
+# Process the input data.
+def SMA(ts, n) :
+    ret = np.cumsum(ts)
+    ret[n:] = ret[n:] - ret[:-n]
+    return ret[n - 1:] / n
+
+
+def RepCt(x, n):
+    m = len(x)
+    return np.repeat(x, (n + m - 1) / m)[:n]
+
+
+def SeasonalDecomp(ts, m):
+    # 2xM SMA to center the smoothed trend, assuming M is even.
+    ts_smoothed = SMA(SMA(ts, m), 2)
+
+    # Compute the raw seasonal offsets.
+    halfm = m / 2
+    rawseas = ts[halfm:-halfm] - ts_smoothed
+
+    # Then compute the average offset for each seasonal index.
+    seas = []
+    for i in xrange(m):
+        s = (i + halfm) % m
+        seas.append(np.mean(rawseas[s::m]))
+
+    # Normalize the seasons to zero sum and then back them out of the timeseries.
+    seas = np.asarray(seas) - np.mean(seas)
+    deseas = ts - RepCt(seas, len(ts))
+
+    # Per Hyndman 2.6.1, fit a line to the first 10 data points to estimate the
+    # slope and intercept state components.
+    slope, intercept, _, _, _ = scipy.stats.linregress(range(10), deseas[:10])
+    return intercept, slope, seas
+
+
 mean_ys = np.mean(ys_raw)
 ys = ys_raw / mean_ys
-data = tf.placeholder(tf.float32, ys.shape)
+intercept, slope, seas = SeasonalDecomp(ys, 4)
+start_state = list(np.concatenate([[intercept], [slope], seas]))
 
 
 # And then build the model.

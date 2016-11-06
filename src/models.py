@@ -94,20 +94,21 @@ QuarterlySeasonal = lambda cost_weight: ets.Model(
 
 
 # The classic linear Holt Winters model for quarterly timeseries data (a frequency of 4).
-QuarterlyHoltWinters = lambda cost_weight: ets.Model(
-    [1, 1, 1, 0, 0, 0],
-    [
-        [1, 1, 0, 0, 0, 0],
-        [0, 1, 0, 0, 0, 0],
-        [0, 0, 0, 1, 0, 0],
-        [0, 0, 0, 0, 1, 0],
-        [0, 0, 0, 0, 0, 1],
-        [0, 0, 1, 0, 0, 0]
-    ],
-    start_state = [0, 0, 0, 0, 0, 0],
-    param_vars  = ['alpha', 'beta', 0, 0, 0, 'gamma'],
-    var_init = {'alpha': 0.99, 'beta': 0.01, 'gamma': 0.01},
-    soft_cost_weight = cost_weight)
+def QuarterlyHoltWinters(cost_weight, start_state = [0, 0, 0, 0, 0, 0]):
+    return ets.Model(
+        [1, 1, 1, 0, 0, 0],
+        [
+            [1, 1, 0, 0, 0, 0],
+            [0, 1, 0, 0, 0, 0],
+            [0, 0, 0, 1, 0, 0],
+            [0, 0, 0, 0, 1, 0],
+            [0, 0, 0, 0, 0, 1],
+            [0, 0, 1, 0, 0, 0]
+        ],
+        start_state = start_state,
+        param_vars  = ['alpha', 'beta', 0, 0, 0, 'gamma'],
+        var_init = {'alpha': 0.99, 'beta': 0.01, 'gamma': 0.01},
+        soft_cost_weight = cost_weight)
 
 
 # A quarterly model that also maintains a sort of baseline steady state to revert to.
