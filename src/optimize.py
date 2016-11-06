@@ -67,4 +67,31 @@ def GradientDescent():
         PrintDiagnostics(sess, ys, 'Training')
 
 
-GradientDescent()
+# Nelder-Mead Simplex algorithm, heuristic but efficient for low dimensionality.
+def NelderMead():
+    # Mild hack to exclude the global step / cost variables.
+    all_varz = [var for var in tf.trainable_variables() if not var.name.startswith('global_step')]
+
+    with tf.Session() as sess:
+        def Cost(x):
+            idx = 0
+            assignments = []
+            for var in all_varz:
+                shape = var.get_shape()
+                n = int(np.product(shape))
+                val = tf.constant(x[idx:idx+n], shape = shape, dtype = var.dtype)
+                idx += n
+                assignments.append(var.assign(val))
+
+            sess.run(assignments)
+            c = sess.run(cost, feed_dict={data: ys})
+            print c
+            return c
+
+        sess.run(init)
+        packed = [tf.reshape(var, [-1]) for var in all_varz]
+        scipy.optimize.fmin(Cost, np.concatenate(sess.run(packed, feed_dict={data: ys})))
+        PrintDiagnostics(sess, ys, 'Nelder-Mead')
+
+
+NelderMead()
