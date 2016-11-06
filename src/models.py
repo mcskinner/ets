@@ -121,7 +121,7 @@ BaselineState = lambda cost_weight: ets.Model(
         [0, 0, 0, 0, 0, 1],
         [0, 0, 1, 0, 0, 0]
     ],
-    start_state = [0, 0, 0, 0, 0, 0],
+    #start_state = [0, 0, 0, 0, 0, 0],
     param_vars  = ['alpha', 'beta', 0, 0, 0, 'gamma'],
     var_init = {'alpha': 0.99, 'beta': 0.1, 'gamma': 0.01, 'reg': 0.0},
     var_bounds = {'reg': (-1, 0)},
