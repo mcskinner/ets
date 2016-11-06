@@ -50,9 +50,9 @@ def Model(
 
         # ETS params
         if start_state is None:
-            state0 = tf.Variable(tf.random_uniform([n, 1], -0.1, 0.1), name = 'state0', dtype = tf.float32)
+            state0 = tf.Variable(tf.random_uniform([n, 1], -0.1, 0.1), dtype = tf.float32)
         else:
-            state0 = tf.Variable(tf.cast(tf.reshape(flatten(start_state), [n, 1]), name = 'state0', dtype = tf.float32))
+            state0 = tf.Variable(tf.cast(tf.reshape(flatten(start_state), [n, 1]), dtype = tf.float32))
 
         params = [get_var(v) for v in param_vars]
         params = tf.reshape(tf.pack(params), [n, 1])
