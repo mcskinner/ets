@@ -82,10 +82,7 @@ def NelderMead():
         feeds = {data: ys}
         for var in all_varz:
             shape = var.get_shape()
-            if len(shape) == 0:
-                n = 1
-            else:
-                n = int(np.product(shape))
+            n = int(np.product(shape))
             feeds[var.name] = np.reshape(x[idx:idx+n], shape)
             idx += n
         return feeds
