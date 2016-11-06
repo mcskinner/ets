@@ -21,7 +21,7 @@ display_step = 100
 ys_raw = datasets.ukcars
 mean_ys = np.mean(ys_raw)
 ys = ys_raw / mean_ys
-data = tf.placeholder('float', ys.shape)
+data = tf.placeholder(tf.float32, ys.shape)
 
 
 # And then build the model.
@@ -32,12 +32,12 @@ state0, varz, cost = models.BaselineState(cost_weight)(data)
 
 # Dump the state to the screen.
 # TODO: does repeatedly calling sess.run(...) perturb the state?
-def PrintDiagnostics(sess, ys, title):
-    c = sess.run(cost, feed_dict={data: ys})
+def PrintDiagnostics(sess, ys, title, feeds):
+    c = sess.run(cost, feed_dict=feeds)
     print title, \
         "cost=", "{:.9f}".format(c), \
-        "state0=", sess.run(tf.reshape(state0, [-1])), \
-        "varz=", dict((k, sess.run(v)) for k, v in varz.iteritems())
+        "state0=", sess.run(tf.reshape(state0, [-1]), feed_dict=feeds), \
+        "varz=", dict((k, sess.run(v, feed_dict=feeds)) for k, v in varz.iteritems())
 
 
 # Initializing the variables
@@ -53,7 +53,6 @@ def GradientDescent():
     # Launch the graph
     with tf.Session() as sess:
         sess.run(init)
-        PrintDiagnostics(sess, ys, 'Init')
 
         # Fit the data.    
         for epoch in range(training_epochs):
@@ -61,37 +60,44 @@ def GradientDescent():
 
             # Display logs per epoch step
             if epoch % display_step == 0:
-                PrintDiagnostics(sess, ys, 'Epoch: %04d' % epoch)
+                PrintDiagnostics(sess, ys, 'Epoch: %04d' % epoch, {data: ys})
 
         print "Optimization Finished!"
-        PrintDiagnostics(sess, ys, 'Training')
+        PrintDiagnostics(sess, ys, 'Training', {data: ys})
 
 
 # Nelder-Mead Simplex algorithm, heuristic but efficient for low dimensionality.
 def NelderMead():
     # Mild hack to exclude the global step / cost variables.
     all_varz = [var for var in tf.trainable_variables() if not var.name.startswith('global_step')]
+    var_holders = {}
+    var_assignments = []
+    for var in all_varz:
+        holder = tf.placeholder(var.dtype, var.get_shape())
+        var_holders[var.name] = holder
+        var_assignments.append(var.assign(holder))
 
+    def GetFeeds(x):
+        idx = 0
+        feeds = {data: ys}
+        for var in all_varz:
+            shape = var.get_shape()
+            if len(shape) == 0:
+                n = 1
+            else:
+                n = int(np.product(shape))
+            feeds[var.name] = np.reshape(x[idx:idx+n], shape)
+            idx += n
+        return feeds
+        
     with tf.Session() as sess:
         def Cost(x):
-            idx = 0
-            assignments = []
-            for var in all_varz:
-                shape = var.get_shape()
-                n = int(np.product(shape))
-                val = tf.constant(x[idx:idx+n], shape = shape, dtype = var.dtype)
-                idx += n
-                assignments.append(var.assign(val))
-
-            sess.run(assignments)
-            c = sess.run(cost, feed_dict={data: ys})
-            print c
-            return c
+            return sess.run(cost, feed_dict=GetFeeds(x))
 
         sess.run(init)
         packed = [tf.reshape(var, [-1]) for var in all_varz]
-        scipy.optimize.fmin(Cost, np.concatenate(sess.run(packed, feed_dict={data: ys})))
-        PrintDiagnostics(sess, ys, 'Nelder-Mead')
+        x = scipy.optimize.fmin(Cost, np.concatenate(sess.run(packed)))
+        PrintDiagnostics(sess, ys, 'Nelder-Mead', GetFeeds(x))
 
 
 NelderMead()
